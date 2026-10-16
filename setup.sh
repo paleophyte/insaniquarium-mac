@@ -136,7 +136,7 @@ install_scripts() {
   local f
   # Atomic (temp+rename) so this can safely overwrite an update.sh / reapply.sh
   # that is currently executing.
-  for f in edit_appinfo.py inject.sh reapply.sh install-durability.sh update.sh in-app-update.sh \
+  for f in app-launch.sh edit_appinfo.py inject.sh reapply.sh install-durability.sh update.sh in-app-update.sh \
            com.jake.insaniquarium.steampatch.plist run.sh uninstall.sh; do
     [ -f "$SP/$f" ] && atomic_copy "$SP/$f" "$PORTHOME/$f"
   done
@@ -322,7 +322,7 @@ update_verify() {
   # never fail. 'bash setup.sh verify' in Terminal is the authoritative check.
   launchctl list 2>/dev/null | grep -q insaniquarium.steampatch \
     || echo "note: durability agent not detected from here - confirm with 'bash setup.sh verify' in Terminal"
-  python3 "$editpy" show "$APPINFO" 2>/dev/null | grep -q macos \
+  python3 "$editpy" show "$APPINFO" 2>/dev/null | grep -Fq "'executable': 'Insaniquarium.app'" \
     || echo "note: Steam Play-button wiring looks incomplete - run the full ./setup.sh if Play doesn't launch the app"
 }
 
@@ -336,6 +336,7 @@ apps" prompt on launch (clicking Allow works each time). To silence it for good:
   already listed, toggle it off then on; otherwise click "+", add
   /Applications/Insaniquarium.app, and switch it on.
 MSG
+  echo "If Steam was running, quit and reopen it to load the app-bundle launch entry."
   # Never pop System Settings during an unattended in-app update relaunch.
   if [ "${NONINTERACTIVE:-0}" != 1 ] && ask "Open Full Disk Access settings now?"; then
     open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles" || true
@@ -395,8 +396,8 @@ verify_install() {
   chk "saver installed"      '[ -d "$SAVER" ]'
   chk "saver assets present" 'valid_assets "$SAVER/Contents/Resources"'
   chk "saver relocatable"    '! otool -L "$SAVER/Contents/MacOS/Insaniquarium" | grep -q /opt/homebrew'
-  chk "appinfo injected"     'python3 "$editpy" show "$APPINFO" | grep -q macos'
-  chk "launch symlink"       '[ -L "$GAMEDIR/insaniquarium" ] && [ -x "$GAMEDIR/insaniquarium" ]'
+  chk "appinfo injected"     'python3 "$editpy" show "$APPINFO" | grep -Fq "Insaniquarium.app"'
+  chk "launch symlink"       '[ -L "$GAMEDIR/Insaniquarium.app" ] && [ "$(readlink "$GAMEDIR/Insaniquarium.app")" = "$APP" ] && [ -x "$GAMEDIR/Insaniquarium.app/Contents/MacOS/insaniquarium" ]'
   chk "app manifest"         'grep -q "\"StateFlags\"[[:space:]]*\"4\"" "$STEAM/steamapps/appmanifest_3320.acf"'
   chk "durability agent"     'launchctl list | grep -q insaniquarium.steampatch'
   if [ "$ok" = 1 ]; then echo "all good"; else exit 1; fi
